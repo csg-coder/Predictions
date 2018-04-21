@@ -25,8 +25,9 @@ namespace Predictions
             //MergeFiles();
             //MergeFiles2();
 
-            var trainTestData = CreateDataSets4();
-            CreateAndTrainModel(trainTestData);
+            var trainTestData = CreateDataSets();
+            //CreateAndTrainModel(trainTestData);
+            LoadModel(trainTestData);
         }
 
         private static void CreateAndTrainModel(TrainTestData trainTestData)
@@ -49,9 +50,44 @@ namespace Predictions
 
             File.WriteAllText(@"..\..\Logs\" + DateTime.Now.ToString("yyyy_MM_dd_hh_mm") + ".txt", buffer);
 
+            model.SaveModel(@"..\..\Logs\model" + DateTime.Now.ToString("yyyy_MM_dd_hh_mm"));
+
             Console.ReadLine();
         }
 
+        private static void LoadModel(TrainTestData trainTestData)
+        {
+            var trainFrame = new XYFrame();
+            trainTestData.TrainData.ForEach(row => trainFrame.Add(row.ToFloats(), (float)row.Prediction));
+            var testFrame = new XYFrame();
+            trainTestData.TestData.ForEach(row => testFrame.Add(row.ToFloats(), (float)row.Prediction));
+
+            var model = new Sequential();
+            //model.Add(new LSTM(dim: WindowSize, shape: Shape.Create(trainFrame.XFrame.Shape[1]), returnSequence: true));
+            //model.Add(new LSTM(dim: WindowSize, shape: Shape.Create(trainFrame.XFrame.Shape[1])));
+            //model.Add(new Dense(dim: 1));
+
+            //model.OnEpochEnd += Model_OnEpochEnd;
+            //model.OnTrainingEnd += Model_OnTrainingEnd;
+
+            //model.Compile(OptOptimizers.Adam, OptLosses.MeanSquaredError, OptMetrics.MSE);
+            //model.Train(trainFrame, 10, 64, testFrame);
+
+            //File.WriteAllText(@"..\..\Logs\" + DateTime.Now.ToString("yyyy_MM_dd_hh_mm") + ".txt", buffer);
+
+            model.LoadModel(@"..\..\Logs\model_sample");
+ 
+            //trainFrame.XFrame
+            Console.WriteLine("loaded");
+            var evalframe = new DataFrame();
+            evalframe.Add(trainTestData.TestData.First().ToFloats());
+            var test = model.Evaluate(evalframe);
+            Console.WriteLine($"actual:{trainTestData.TestData.First().Prediction}; predicted:{test.First()}");
+
+
+
+            Console.ReadLine();
+        }
         private static void Model_OnTrainingEnd(Dictionary<string, List<double>> trainingResult)
         {
             var mean = trainingResult[OptMetrics.MSE].Mean();
@@ -89,7 +125,7 @@ namespace Predictions
             firstInfo.ForEach(r =>
             {
                 r.Date = DateTime.Parse(r.Date as string).Day;
-                r.Time = TimeSpan.Parse(r.Time as string).Minutes;
+                r.Time = TimeSpan.Parse(r.Time as string).TotalMinutes;
             });
             firstInfo = firstInfo.NormalizeColumn("MaxPrice")
                 .NormalizeColumn("Date")
